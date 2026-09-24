@@ -17,7 +17,9 @@ from .dta import _num
 # ---------------------------------------------------------------------------
 
 def _sheet_name(name: str, used: set) -> str:
-    base = re.sub(r"[\[\]\:\*\?\/\\]", "_", name)[:31] or "Sheet"
+    base = re.sub(r"[\[\]\:\*\?\/\\]", "_", name).strip("'")[:31].strip("'") or "Sheet"
+    if base.lower() == "history":  # reserved by Excel
+        base = "History_"
     s, k = base, 2
     while s.lower() in used:
         suffix = f"_{k}"
@@ -58,16 +60,35 @@ def system_dataframe(sysrec) -> pd.DataFrame:
     return df
 
 
-def fit_table(systems, param_labels: dict | None = None) -> pd.DataFrame:
-    """Wide table: one row per system, value + error columns for each parameter."""
-    param_labels = param_labels or {}
-    order: list[tuple[str, str]] = []  # (param name, unit)
+def _param_columns(systems) -> list[tuple[str, str]]:
+    """(parameter, unit text) in order of first appearance; mixed units are shown together."""
+    order: dict[str, list[str]] = {}
     for s in systems:
         if s.fit is None:
             continue
         for n, u in zip(s.fit.circuit.param_names, s.fit.circuit.units(bool(s.area_used))):
-            if n not in [o[0] for o in order]:
-                order.append((n, u))
+            units = order.setdefault(n, [])
+            if u not in units:
+                units.append(u)
+    return [(n, " or ".join(us)) for n, us in order.items()]
+
+
+def _notes(fit) -> str:
+    parts = []
+    for n, fl, fx in zip(fit.circuit.param_names, fit.flags, fit.fixed):
+        if fx:
+            parts.append(f"{n} fixed")
+        elif fl == "undetermined":
+            parts.append(f"{n} not determined by the data")
+        elif fl == "at bound":
+            parts.append(f"{n} hit the search limit")
+    return "; ".join(parts)
+
+
+def fit_table(systems, param_labels: dict | None = None) -> pd.DataFrame:
+    """Wide table: one row per system, value + error columns for each parameter."""
+    param_labels = param_labels or {}
+    order = _param_columns(systems)
     rows = []
     for s in systems:
         if s.fit is None:
@@ -79,13 +100,15 @@ def fit_table(systems, param_labels: dict | None = None) -> pd.DataFrame:
             lab = param_labels.get(n, n)
             col = f"{lab} ({u})" if u not in ("–", "") else lab
             r[col] = p.get(n, np.nan)
-            r[f"{lab} error (%)"] = err.get(n, np.nan)
+            e = err.get(n, np.nan)
+            r[f"{lab} error (%)"] = e if np.isfinite(e) else np.nan
         r["χ²"] = s.fit.chi2
         r["Weighting"] = s.fit.weighting
         r["Points"] = s.fit.n_points
         r["f min (Hz)"] = s.fit.freq_range[0]
         r["f max (Hz)"] = s.fit.freq_range[1]
         r["Area used (cm²)"] = s.area_used or ""
+        r["Notes"] = _notes(s.fit)
         rows.append(r)
     return pd.DataFrame(rows)
 
@@ -161,19 +184,17 @@ _SUP = str.maketrans("-0123456789", "⁻⁰¹²³⁴⁵⁶⁷⁸⁹")
 
 
 def fmt_value(v: float, sig: int = 3) -> tuple[str, str | None]:
-    """Return (mantissa text, exponent or None)."""
+    """Return (mantissa text, exponent or None), rounded to `sig` significant figures."""
     if v is None or not np.isfinite(v):
         return "–", None
     if v == 0:
         return "0", None
+    v = float(f"{v:.{sig - 1}e}")          # round first, so 9999.6 -> 1.00e4, not '10000'
     e = int(math.floor(math.log10(abs(v))))
     if -2 <= e < 4:
         decimals = max(sig - 1 - e, 0)
         return f"{v:.{decimals}f}", None
-    m = v / 10 ** e
-    if round(abs(m), sig - 1) >= 10:
-        m, e = m / 10, e + 1
-    return f"{m:.{sig - 1}f}", str(e)
+    return f"{v / 10 ** e:.{sig - 1}f}", str(e)
 
 
 def fmt_value_text(v: float, sig: int = 3) -> str:
@@ -196,6 +217,31 @@ def _add_rich(paragraph, text: str):
             paragraph.add_run(part)
 
 
+def _add_label(paragraph, text: str):
+    """Legend text for Word: plain outside $...$, sub/superscripts inside math."""
+    parts = re.split(r"(?<!\\)\$", text)
+    for i, part in enumerate(parts):
+        if not part:
+            continue
+        if i % 2 == 0:  # outside math
+            paragraph.add_run(part.replace("\\$", "$"))
+            continue
+        math = re.sub(r"\\math(?:regular|rm|it|bf|sf)\{", "{", part)
+        math = re.sub(r"\\(?:,|;|:|!|quad|\s)", " ", math)
+        math = math.replace("\\degree", "°").replace("\\circ", "°").replace("\\mu", "µ")
+        for tok in re.split(r"(_\{[^}]*\}|_.|\^\{[^}]*\}|\^.)", math):
+            if not tok:
+                continue
+            if tok[0] in "_^":
+                r = paragraph.add_run(tok[1:].strip("{}").replace("-", "\u2212"))
+                if tok[0] == "_":
+                    r.font.subscript = True
+                else:
+                    r.font.superscript = True
+            else:
+                paragraph.add_run(tok.replace("{", "").replace("}", "").replace("\\", ""))
+
+
 def write_docx_table(path: Path, systems, param_labels: dict | None, show_errors: bool,
                      caption: str | None = None, font: str = "Arial"):
     try:
@@ -211,11 +257,7 @@ def write_docx_table(path: Path, systems, param_labels: dict | None, show_errors
     fitted = [s for s in systems if s.fit is not None]
     if not fitted:
         return None
-    cols: list[tuple[str, str]] = []
-    for s in fitted:
-        for n, u in zip(s.fit.circuit.param_names, s.fit.circuit.units(bool(s.area_used))):
-            if n not in [c[0] for c in cols]:
-                cols.append((n, u))
+    cols = _param_columns(fitted)
 
     doc = Document()
     st = doc.styles["Normal"]
@@ -245,11 +287,14 @@ def write_docx_table(path: Path, systems, param_labels: dict | None, show_errors
         for run in para.runs:
             run.bold = True
 
+    notes_needed = False
     for s in fitted:
         cells = t.add_row().cells
-        _add_rich(cells[0].paragraphs[0], s.label)
+        _add_label(cells[0].paragraphs[0], s.label)
         params = s.fit.params
         err = dict(zip(s.fit.circuit.param_names, s.fit.rel_error_pct))
+        flags = dict(zip(s.fit.circuit.param_names, s.fit.flags))
+        fixed = dict(zip(s.fit.circuit.param_names, s.fit.fixed))
         for j, (n, _) in enumerate(cols, start=1):
             para = cells[j].paragraphs[0]
             m, e = fmt_value(params.get(n, np.nan))
@@ -258,7 +303,12 @@ def write_docx_table(path: Path, systems, param_labels: dict | None, show_errors
                 para.add_run(" × 10")
                 sup = para.add_run(e.replace("-", "−"))
                 sup.font.superscript = True
-            if show_errors and n in err and np.isfinite(err[n]):
+            if n in params and fixed.get(n):
+                para.add_run(" (fixed)")
+            elif n in params and flags.get(n):
+                para.add_run(" (n.d.)")
+                notes_needed = True
+            elif show_errors and n in err and np.isfinite(err[n]):
                 ev = err[n]
                 para.add_run(" (<0.1)" if ev < 0.1 else f" ({ev:.1f})" if ev < 100 else f" ({ev:.0f})")
         m, e = fmt_value(s.fit.chi2)
@@ -292,10 +342,17 @@ def write_docx_table(path: Path, systems, param_labels: dict | None, show_errors
                     run.font.size = Pt(8)
                     run.font.name = font
 
+    notes = []
     if show_errors:
-        doc.add_paragraph("Values in parentheses are relative standard errors of the fitted "
-                          "parameters (%). χ² is the weighted sum of squares divided by the "
-                          "degrees of freedom (" + fitted[0].fit.weighting + " weighting).")
+        notes.append("Values in parentheses are relative standard errors of the fitted "
+                     "parameters (%); errors above about 30 % are approximate. χ² is the weighted "
+                     "sum of squares divided by the degrees of freedom ("
+                     + fitted[0].fit.weighting + " weighting).")
+    if notes_needed:
+        notes.append("n.d.: not determined by the data (the parameter cannot be resolved with "
+                     "this circuit and frequency range).")
+    for note in notes:
+        doc.add_paragraph(note)
     path.parent.mkdir(parents=True, exist_ok=True)
     doc.save(path)
     return path

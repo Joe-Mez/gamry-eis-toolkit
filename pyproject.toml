@@ -9,7 +9,7 @@ description = "Gamry DTA to Excel, equivalent circuit fitting and publication-qu
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
-dependencies = ["numpy>=1.23", "scipy>=1.9", "matplotlib>=3.6", "pandas>=1.5",
+dependencies = ["numpy>=1.23", "scipy>=1.9", "matplotlib>=3.6", "pandas>=2.1",
                 "openpyxl>=3.0", "pyyaml>=6.0", "python-docx>=0.8"]
 
 [project.scripts]
@@ -20,3 +20,7 @@ packages = ["eistool"]
 
 [tool.setuptools.package-data]
 eistool = ["config_template.yaml"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

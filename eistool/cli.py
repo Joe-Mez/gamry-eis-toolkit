@@ -35,26 +35,54 @@ def main(argv=None):
         print("Circuit elements (series: '-', parallel: 'p(a,b)'):\n" + describe_elements())
         return 0
 
+    try:
+        return _dispatch(a)
+    except KeyboardInterrupt:
+        print("\nStopped. / Prekinuto.")
+        return 130
+
+
+def _dispatch(a) -> int:
+    from .errors import UserError
+
     cfg = Path(a.config)
-    if a.init:
-        from .pipeline import init_config
-        if cfg.exists():
-            ans = input(f"{cfg} exists. Overwrite? [y/N]: ").strip().lower() if sys.stdin.isatty() else "n"
-            if ans not in ("y", "yes", "d", "da"):
-                print("Nothing changed.")
-                return 1
-        path, files = init_config(cfg, a.data)
-        print(f"Wrote {path} with {len(files)} system(s). Edit names, legends and circuit, then run again.")
+    try:
+        if a.init:
+            from .pipeline import init_config
+            if cfg.exists():
+                ans = input(f"{cfg} exists. Overwrite? [y/N]: ").strip().lower() if sys.stdin.isatty() else "n"
+                if ans not in ("y", "yes", "d", "da"):
+                    print("Nothing changed.")
+                    return 1
+            path, files = init_config(cfg, a.data)
+            print(f"Wrote {path} with {len(files)} system(s). Edit names, legends and circuit, then run again.")
+            return 0
+
+        if not cfg.exists():
+            print(f"Config file '{cfg}' not found. Create one with:  python run_eis.py --init")
+            return 1
+
+        from .pipeline import run
+        run(cfg, ask=not a.no_ask, convert_only=a.convert_only, no_fit=a.no_fit)
+        print("\nDone. / Gotovo.")
         return 0
 
-    if not cfg.exists():
-        print(f"Config file '{cfg}' not found. Create one with:  python run_eis.py --init")
-        return 1
-
-    from .pipeline import run
-    run(cfg, ask=not a.no_ask, convert_only=a.convert_only, no_fit=a.no_fit)
-    print("\nDone. / Gotovo.")
-    return 0
+    except UserError as e:
+        print(f"\nERROR / GREŠKA:\n  {e}")
+        return 2
+    except PermissionError as e:
+        name = Path(getattr(e, "filename", "") or "").name or "an output file"
+        print(f"\nERROR / GREŠKA:\n  Cannot write {name}. It is probably open in Excel or Word. "
+              "Close it and run again.\n  Fajl je verovatno otvoren u Excelu ili Wordu. "
+              "Zatvorite ga i pokrenite ponovo.")
+        return 2
+    except Exception:
+        import traceback
+        print("\nUnexpected error. Please send the text below (and the DTA file if possible) "
+              "to whoever maintains this tool.\nNeočekivana greška. Pošaljite tekst ispod "
+              "(i DTA fajl ako je moguće).\n")
+        traceback.print_exc()
+        return 3
 
 
 if __name__ == "__main__":

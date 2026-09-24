@@ -48,23 +48,23 @@ circuit: R0-p(R1,CPE1)
 systems:
   - file: blank.DTA
     name: Blank
-    legend: "Blank (1 M HCl)"
+    legend: 'Blank (1 M HCl)'
   - file: inhibitor_0.1mM.DTA
     name: 0.1 mM
-    legend: "0.1 mM inhibitor"
+    legend: '0.1 mM inhibitor'
   - file: inhibitor_1mM.DTA
     name: 1 mM
-    legend: "1 mM inhibitor"
+    legend: '1 mM inhibitor'
   - file: inhibitor_5mM.DTA
     name: 5 mM
-    legend: "5 mM inhibitor"
+    legend: '5 mM inhibitor'
     circuit: R0-p(CPE2,R2-p(R1,CPE1))
 
 # Example of a system with its own circuit and starting values:
 # Primer sistema sa sopstvenim kolom i početnim vrednostima:
 #  - file: inhibitor_5mM.DTA
 #    name: 5 mM
-#    legend: "5 mM inhibitor"
+#    legend: '5 mM inhibitor'
 #    circuit: R0-p(CPE2,R2-p(R1,CPE1))
 #    initial_guess: {R2: 50, R1: 5000}
 #    fixed: {CPE2_n: 1.0}
@@ -73,7 +73,8 @@ systems:
 
 fit:
   enabled: true
-  # modulus (recommended, like ZView/Gamry "calc-modulus"), proportional, unit
+  # modulus (recommended): each point weighted by 1/|Z| of the measured data
+  # proportional: Z' and Z'' weighted separately; unit: no weighting
   weighting: modulus
   # Limit the fitted frequency range in Hz (null = use all points)
   # Ograničenje opsega frekvencija za fit (null = sve tačke)
@@ -92,12 +93,14 @@ plots:
   width: single
   font: Arial
   font_size: 8
-  marker_size: 4
-  # Plot every Nth data point: auto (thins markers so they do not overlap) or 1 = all points
-  marker_every: auto
+  marker_size: 3.5
+  # Show every Nth measured point: 1 = all points (recommended for publication),
+  # auto = thin the markers so they do not overlap (the fit line is always complete)
+  marker_every: 1
   fit_linewidth: 1.0
   formats: [pdf, tiff, png]
-  dpi: 600
+  # 1000 dpi = Elsevier requirement for line art (TIFF/PNG); PDF is vector anyway
+  dpi: 1000
   # Zoom the Nyquist plot: max value of both axes in Ω cm² (null = automatic)
   nyquist_max: null
   # If one system is >10x larger than the rest, also save Nyquist_zoom showing the smaller ones

@@ -25,7 +25,7 @@ Turn Gamry potentiostat `.DTA` impedance files into publication-ready results in
 | Asks for legend text | The program asks for each legend label when it runs (press Enter to keep the default) |
 | Fit lines on the plots | Solid line in the sample colour over the fitted frequency range |
 | Table | `EIS_results.xlsx` (sheet *Fit results*), `fit_results.csv`, `fit_table.docx` |
-| Journal standard | 90 mm single-column or 190 mm double-column width, Arial 8 pt, inward ticks, embedded fonts in PDF, 600 dpi LZW TIFF, colour-blind-safe palette with distinct marker shapes so figures also work in greyscale |
+| Journal standard | exactly 90 mm (single column) or 190 mm (double column) wide, Arial 8 pt, inward ticks, embedded fonts in PDF, 1000 dpi RGB TIFF (LZW), colour-blind-safe palette with distinct marker shapes so figures also work in greyscale |
 
 ## Get the code
 
@@ -137,11 +137,12 @@ Each element name becomes one column in the results table, so give the same phys
 ### Fitting details
 
 * Complex non-linear least squares (SciPy `least_squares`, trust region) on real and imaginary parts together
-* **Modulus weighting** by default (same idea as ZView and Gamry Echem Analyst "calc-modulus"). `proportional` and `unit` are also available
+* **Modulus weighting** by default: each point is weighted by 1/|Z| of the measured data, so every decade of frequency counts equally. `proportional` (Z′ and Z″ weighted separately, floored at 5 % of |Z|) and `unit` are also available
 * Positive parameters are fitted in log space and CPE exponents are bounded to 0 ≤ n ≤ 1
 * Starting values are estimated from the spectrum, then 40 random restarts are tried to avoid local minima. You can set `initial_guess` or `fixed` values per system
 * Reported errors are 1σ standard errors from the Jacobian, given as % of the value. χ² is the weighted sum of squares divided by the degrees of freedom
-* A warning is printed when any parameter error exceeds 50 %, which usually means the circuit has more elements than the data can support
+* Parameters the data cannot determine (for example two resistors in series, or an element whose time constant lies outside the measured frequency range) are detected from the Jacobian and reported as **not determined** (± ∞, "n.d." in the Word table) instead of with a misleadingly small error
+* A warning is printed when any parameter is not determined, hits the search limit or has an error above 50 %. That usually means the circuit has more elements than the data can support
 
 ## Area normalisation
 
@@ -160,7 +161,7 @@ Each element name becomes one column in the results table, so give the same phys
 
 ```bash
 pip install pytest
-pytest
+python -m pytest
 ```
 
 The tests include a real Gamry file from the [impedance.py](https://github.com/ECSHackWeek/impedance.py) project and check that the fitter recovers known parameters from noisy synthetic spectra.

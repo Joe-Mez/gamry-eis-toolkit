@@ -27,13 +27,13 @@ Look at `results/figures/*.png` before saying the figures are done.
 * Bode: |Z| and phase on the same graph (twin y-axes), filled markers = |Z|, open = phase
 * Each sample keeps the same colour and marker on every figure
 * Fit shown as a solid line in the sample colour
-* Elsevier / Corrosion Science style: 90 mm or 190 mm width, Arial 8 pt, PDF + 600 dpi TIFF
+* Elsevier / Corrosion Science style: exactly 90 mm or 190 mm wide, Arial 8 pt, PDF + 1000 dpi RGB TIFF
 
 ## Check the fit before reporting
 
 * Area: the run prints the electrode area. Gamry's default is 1 cm². Ask the user for the real
   area if the printed value looks like a default and they want Ω cm².
-* Errors > 50 % or n outside 0.5 to 1 usually mean the circuit is over-parameterised or the
+* Parameters reported as "not determined" (± inf), "hit the search limit", errors > 50 % or n outside 0.5 to 1 usually mean the circuit is over-parameterised or the
   wrong model. Say so and suggest a simpler circuit, `fixed` values, or a `freq_min`/`freq_max`
   window (e.g. to drop low-frequency scatter or an inductive tail).
 * χ² around 1e-3 or lower is a good fit with modulus weighting.

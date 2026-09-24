@@ -9,7 +9,7 @@ set "CONDA_BAT="
 rem ---------------------------------------------------------------
 rem  1. Find conda (Anaconda / Miniconda), even if it is not on PATH
 rem ---------------------------------------------------------------
-for %%P in ("%USERPROFILE%\miniconda3" "%USERPROFILE%\anaconda3" "%LOCALAPPDATA%\miniconda3" "%LOCALAPPDATA%\anaconda3" "%ProgramData%\miniconda3" "%ProgramData%\anaconda3" "%USERPROFILE%\miniforge3" "%LOCALAPPDATA%\miniforge3") do (
+for %%P in ("%USERPROFILE%\miniconda3" "%USERPROFILE%\anaconda3" "%USERPROFILE%\miniforge3" "%LOCALAPPDATA%\miniconda3" "%LOCALAPPDATA%\anaconda3" "%LOCALAPPDATA%\miniforge3" "%ProgramData%\miniconda3" "%ProgramData%\anaconda3" "%ProgramData%\miniforge3" "C:\miniconda3" "C:\anaconda3" "C:\miniforge3" "C:\ProgramData\Miniconda3" "D:\miniconda3" "D:\anaconda3") do (
   if not defined CONDA_BAT if exist "%%~P\condabin\conda.bat" set "CONDA_BAT=%%~P\condabin\conda.bat"
 )
 if not defined CONDA_BAT for /f "delims=" %%C in ('where conda.bat 2^>nul') do if not defined CONDA_BAT set "CONDA_BAT=%%C"

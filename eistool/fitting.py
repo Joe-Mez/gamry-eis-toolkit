@@ -7,6 +7,7 @@ import numpy as np
 from scipy.optimize import least_squares
 
 from .circuits import Circuit
+from .errors import UserError
 
 WEIGHTINGS = ("modulus", "proportional", "unit")
 
@@ -24,6 +25,7 @@ class FitResult:
     success: bool
     message: str
     freq_range: tuple = (np.nan, np.nan)
+    flags: list = field(default_factory=list)   # per parameter: "", "undetermined", "at bound"
     extra: dict = field(default_factory=dict)
 
     @property
@@ -89,15 +91,26 @@ def initial_guess(circuit: Circuit, freq, z) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 def _weights(z: np.ndarray, weighting: str):
+    """Weights (denominators) for real and imaginary residuals, from the measured data.
+
+    modulus      : |Z| for both parts (data-modulus weighting; robust default)
+    proportional : |Z'| and |Z''| separately, floored at 5 % of |Z| so that points
+                   where one part is close to zero do not dominate the fit
+    unit         : no weighting
+    """
+    m = np.abs(z)
     if weighting == "modulus":
-        m = np.abs(z)
         return m, m
     if weighting == "proportional":
-        return np.maximum(np.abs(z.real), 1e-12), np.maximum(np.abs(z.imag), 1e-12)
+        floor = 0.05 * m
+        return np.maximum(np.abs(z.real), floor), np.maximum(np.abs(z.imag), floor)
     if weighting == "unit":
         one = np.ones(len(z))
         return one, one
-    raise ValueError(f"weighting must be one of {WEIGHTINGS}")
+    raise UserError(f"fit weighting must be one of {', '.join(WEIGHTINGS)} (got '{weighting}').")
+
+
+LOG_BOUND = 15.0  # positive parameters are fitted as log10(value) within +-15 decades
 
 
 def fit_circuit(circuit: Circuit | str, freq, z, *, guess: dict | None = None,
@@ -112,28 +125,49 @@ def fit_circuit(circuit: Circuit | str, freq, z, *, guess: dict | None = None,
         circuit = Circuit(circuit)
     freq = np.asarray(freq, float)
     z = np.asarray(z, complex)
+    weighting = str(weighting).strip().lower()
     names = circuit.param_names
     guess, fixed = dict(guess or {}), dict(fixed or {})
     for k in list(guess) + list(fixed):
         if k not in names:
-            raise KeyError(f"Unknown parameter '{k}'. Parameters of {circuit.text}: {names}")
+            raise UserError(f"Unknown parameter '{k}' for circuit {circuit.text}. "
+                            f"Its parameters are: {', '.join(names)}")
+    is_exp = np.array([k == "exponent" for k in circuit.param_kinds])
+    for src, dct in (("initial_guess", guess), ("fixed", fixed)):
+        for k, v in dct.items():
+            try:
+                v = float(v)
+            except (TypeError, ValueError):
+                raise UserError(f"{src} value for {k} must be a number (got '{v}').") from None
+            if is_exp[names.index(k)]:
+                if not 0 <= v <= 1:
+                    raise UserError(f"{src} value for {k} must be between 0 and 1 (got {v}).")
+            elif v <= 0:
+                raise UserError(f"{src} value for {k} must be greater than 0 (got {v}).")
+            dct[k] = v
+
+    n = len(freq)
+    fixed_mask = np.array([n_ in fixed for n_ in names])
+    free = ~fixed_mask
+    n_free = int(free.sum())
+    if n == 0:
+        raise UserError("No data points to fit (check freq_min / freq_max).")
+    if 2 * n <= n_free:
+        raise UserError(f"Only {n} data points for {n_free} free parameters in {circuit.text}. "
+                        f"At least {n_free // 2 + 1} points are needed, more in practice.")
 
     p0 = initial_guess(circuit, freq, z)
     for k, v in guess.items():
-        p0[names.index(k)] = float(v)
-    fixed_mask = np.array([n in fixed for n in names])
+        p0[names.index(k)] = v
     for k, v in fixed.items():
-        p0[names.index(k)] = float(v)
-    is_exp = np.array([k == "exponent" for k in circuit.param_kinds])
-    free = ~fixed_mask
+        p0[names.index(k)] = v
 
     def to_u(p):
         return np.where(is_exp, p, np.log10(np.abs(p)))[free]
 
     def from_u(u):
         p = p0.copy()
-        pf = np.where(is_exp[free], u, 10.0 ** u)
-        p[free] = pf
+        p[free] = np.where(is_exp[free], u, 10.0 ** u)
         return p
 
     wr, wi = _weights(z, weighting)
@@ -143,12 +177,21 @@ def fit_circuit(circuit: Circuit | str, freq, z, *, guess: dict | None = None,
         r = np.concatenate([(zc.real - z.real) / wr, (zc.imag - z.imag) / wi])
         return np.where(np.isfinite(r), r, 1e6)
 
-    lb = np.where(is_exp[free], 0.0, -15.0)
-    ub = np.where(is_exp[free], 1.0, 15.0)
-    u0 = np.clip(to_u(p0), lb + 1e-9, ub - 1e-9)
+    lb = np.where(is_exp[free], 0.0, -LOG_BOUND)
+    ub = np.where(is_exp[free], 1.0, LOG_BOUND)
 
-    rng = np.random.default_rng(seed)
     best = None
+    if n_free == 0:
+        values = p0.copy()
+        r0 = resid(np.array([]))
+        wssr = float(r0 @ r0)
+        dof = 2 * n
+        return FitResult(circuit, values, np.full(len(names), np.nan), fixed_mask, wssr / dof,
+                         wssr, n, weighting, True, "all parameters fixed",
+                         (float(freq.min()), float(freq.max())), [""] * len(names))
+
+    u0 = np.clip(to_u(p0), lb + 1e-9, ub - 1e-9)
+    rng = np.random.default_rng(seed)
     for k in range(max(n_starts, 1)):
         if k == 0:
             us = u0
@@ -167,23 +210,87 @@ def fit_circuit(circuit: Circuit | str, freq, z, *, guess: dict | None = None,
     if best is None:
         raise RuntimeError("Fit failed for every starting point")
 
-    n = len(freq)
-    n_free = int(free.sum())
-    dof = max(2 * n - n_free, 1)
+    dof = 2 * n - n_free
     wssr = float(2 * best.cost)
     chi2 = wssr / dof
     values = from_u(best.x)
-
-    stderr = np.full(len(names), np.nan)
-    try:
-        J = best.jac
-        cov = np.linalg.pinv(J.T @ J) * chi2
-        su = np.sqrt(np.clip(np.diag(cov), 0, None))
-        pf = values[free]
-        stderr[free] = np.where(is_exp[free], su, pf * np.log(10) * su)
-    except Exception:  # pragma: no cover
-        pass
+    stderr, flags = _standard_errors(best, values, free, is_exp, lb, ub, chi2)
 
     return FitResult(circuit, values, stderr, fixed_mask, chi2, wssr, n, weighting,
                      bool(best.success), str(best.message),
-                     (float(freq.min()), float(freq.max())))
+                     (float(freq.min()), float(freq.max())), flags)
+
+
+def _standard_errors(best, values, free, is_exp, lb, ub, chi2):
+    """1-sigma errors from the Jacobian, with honest handling of unidentifiable parameters.
+
+    A parameter is 'undetermined' when it lies along a (near-)null direction of the
+    Jacobian: the data cannot tell it apart from other parameters (e.g. two resistors
+    in series). Its error is reported as infinite instead of the misleadingly small
+    value a pseudo-inverse would give. A parameter pinned at its search bound is
+    reported as 'at bound' with no error.
+    """
+    n_all = len(values)
+    stderr = np.full(n_all, np.nan)
+    flags = [""] * n_all
+    free_idx = np.flatnonzero(free)
+    J = np.asarray(best.jac, float)
+    x = best.x
+
+    at_bound = np.zeros(len(free_idx), bool)
+    for j in range(len(free_idx)):
+        if is_exp[free_idx[j]]:
+            at_bound[j] = x[j] <= lb[j] + 1e-6          # n stuck at 0 (n = 1 is physical)
+        else:
+            at_bound[j] = (x[j] <= lb[j] + 1e-3) or (x[j] >= ub[j] - 1e-3)
+
+    # Parameters stuck at a search limit carry (almost) no information: take them out
+    # before looking for redundant combinations, or their near-zero columns leak into the
+    # null space and wrongly flag well-determined neighbours.
+    keep = ~at_bound
+    Jk = J[:, keep]
+    try:
+        _, s, vt = np.linalg.svd(Jk, full_matrices=False)
+    except np.linalg.LinAlgError:  # pragma: no cover
+        return stderr, flags
+    tol = s[0] * 1e-7 if s.size and s[0] > 0 else 0.0
+    null = vt[s <= tol] if s.size else np.empty((0, int(keep.sum())))
+    undetermined_k = np.zeros(int(keep.sum()), bool)
+    pf = values[free_idx][keep]
+    exp_f = is_exp[free_idx][keep]
+    for v in null:
+        involved = np.abs(v) > 1e-3          # part of this redundant combination (not numerical noise)
+        # Direction in linear parameter space along which the model does not change.
+        dp = np.where(exp_f, v, v * np.log(10) * pf)
+        # How far can we move before an involved parameter leaves its physical range
+        # (positive values > 0, CPE exponents 0..1)?
+        t_lo, t_hi = -np.inf, np.inf
+        for k in np.flatnonzero(involved):
+            if exp_f[k]:
+                a, b = (0 - pf[k]) / dp[k], (1 - pf[k]) / dp[k]
+            else:
+                a, b = -pf[k] / dp[k], (np.inf if dp[k] > 0 else -np.inf)
+            t_lo, t_hi = max(t_lo, min(a, b)), min(t_hi, max(a, b))
+        with np.errstate(invalid="ignore", divide="ignore", over="ignore"):
+            reach = np.maximum(np.abs(t_lo * dp), np.abs(t_hi * dp))
+            rel = np.where(exp_f, reach, reach / np.abs(pf))
+        rel = np.nan_to_num(rel, nan=0.0, posinf=np.inf)
+        undetermined_k |= involved & (rel > 0.5)
+    undetermined = np.zeros(len(free_idx), bool)
+    undetermined[keep] = undetermined_k
+    good = s > tol
+    su = np.full(len(free_idx), np.nan)
+    if np.any(good):
+        cov = (vt[good].T / s[good] ** 2) @ vt[good] * chi2
+        su[keep] = np.sqrt(np.clip(np.diag(cov), 0, None))
+
+    for j, i in enumerate(free_idx):
+        if at_bound[j]:
+            flags[i] = "at bound"
+            continue
+        if undetermined[j]:
+            flags[i] = "undetermined"
+            stderr[i] = np.inf
+            continue
+        stderr[i] = su[j] if is_exp[i] else values[i] * np.log(10) * su[j]
+    return stderr, flags

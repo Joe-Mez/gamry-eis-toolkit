@@ -25,7 +25,7 @@ Jednom komandom od Gamry `.DTA` fajlova dobijate rezultate spremne za objavljiva
 | Program pita šta piše u legendi | Pri pokretanju pita za tekst legende za svaki sistem (Enter zadržava ponuđeno) |
 | Linija fita na dijagramima | Puna linija u boji uzorka, u opsegu frekvencija koji je fitovan |
 | Tabela | `EIS_results.xlsx` (list *Fit results*), `fit_results.csv`, `fit_table.docx` |
-| Standard časopisa | Širina 90 mm (jedna kolona) ili 190 mm (dve kolone), Arial 8 pt, podeoci ka unutra, fontovi ugrađeni u PDF, TIFF 600 dpi, paleta čitljiva za daltoniste i različiti markeri, pa slika radi i u crno-beloj štampi |
+| Standard časopisa | Širina 90 mm (jedna kolona) ili 190 mm (dve kolone), Arial 8 pt, podeoci ka unutra, fontovi ugrađeni u PDF, TIFF 1000 dpi, paleta čitljiva za daltoniste i različiti markeri, pa slika radi i u crno-beloj štampi |
 
 ## Preuzimanje
 
@@ -135,10 +135,11 @@ Svako ime elementa je jedna kolona u tabeli, zato isti fizički element neka ima
 ### Detalji fita
 
 * Kompleksni nelinearni metod najmanjih kvadrata (SciPy `least_squares`), realni i imaginarni deo zajedno
-* Podrazumevano **težinski po modulu** (kao "calc-modulus" u ZView i Gamry Echem Analyst). Postoje i `proportional` i `unit`
+* Podrazumevano **težinski po modulu**: svaka tačka ima težinu 1/|Z| izmerenih podataka, pa svaka dekada frekvencije podjednako utiče. Postoje i `proportional` (Z′ i Z″ posebno, najmanje 5 % od |Z|) i `unit`
 * Početne vrednosti se procenjuju iz spektra, pa se proba 40 nasumičnih startova da se izbegnu lokalni minimumi. Možete zadati `initial_guess` ili `fixed` po sistemu
 * Greške su standardne greške (1σ) iz Jakobijana, u % od vrednosti. χ² je težinska suma kvadrata podeljena brojem stepeni slobode
-* Ako je greška nekog parametra veća od 50 %, program upozorava. To obično znači da kolo ima previše elemenata za te podatke
+* Parametri koje podaci ne mogu da odrede (npr. dva otpornika redno, ili element čija vremenska konstanta je van izmerenog opsega) prijavljuju se kao **neodređeni** (± ∞, "n.d." u Word tabeli), a ne sa lažno malom greškom
+* Program upozorava ako je parametar neodređen, udario u granicu pretrage ili ima grešku veću od 50 %. To obično znači da kolo ima previše elemenata za te podatke
 
 ## Normalizacija na površinu
 

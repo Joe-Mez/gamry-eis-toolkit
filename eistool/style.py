@@ -21,7 +21,7 @@ PALETTE = ["#0072B2", "#D55E00", "#009E73", "#882255",
 
 # Secondary encoding: every sample also gets its own marker shape, so the
 # figure still reads correctly when printed in greyscale.
-MARKERS = ["o", "s", "^", "D", "v", "p", "h", "<"]
+MARKERS = ["o", "s", "^", "D", "v", "p", "h", "<", "P", "X", ">", "*", "d"]
 
 
 def pick_font(preferred: str | None = None) -> str:
@@ -74,8 +74,7 @@ def apply_style(font: str | None = None, size: float = 8.0) -> str:
         "pdf.fonttype": 42,   # embed TrueType fonts (editable text, required by publishers)
         "ps.fonttype": 42,
         "svg.fonttype": "none",
-        "savefig.bbox": "tight",
-        "savefig.pad_inches": 0.02,
+        "savefig.bbox": "standard",
         "figure.dpi": 150,
     })
     return font
