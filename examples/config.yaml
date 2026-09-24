@@ -1,0 +1,130 @@
+# =====================================================================
+#  Gamry EIS toolkit - configuration
+#  Gamry EIS alat - podešavanja
+#
+#  Edit this file, then run:      python run_eis.py
+#  Izmenite ovaj fajl, pa pokrenite:  python run_eis.py
+# =====================================================================
+
+# Folder with the .DTA files (relative to this file)
+# Folder sa .DTA fajlovima (u odnosu na ovaj fajl)
+data_folder: data
+
+# Where results go (Excel, figures, tables)
+# Gde se snimaju rezultati (Excel, grafici, tabele)
+output_folder: results
+
+# Electrode area for normalising impedance to Ω cm²
+#   auto  -> use the AREA stored in each DTA file
+#   1.0   -> any number in cm² overrides the file value
+#   none  -> no normalisation, plots and fits in Ω
+# Površina elektrode za normalizaciju na Ω cm²
+#   auto -> koristi AREA iz DTA fajla, broj -> ručno u cm², none -> bez normalizacije
+area_cm2: auto
+
+# Default equivalent circuit for every system (override per system below)
+# Podrazumevano ekvivalentno kolo (može se promeniti za svaki sistem ispod)
+#
+#   -        series / redna veza              R0-C1
+#   p(a,b)   parallel / paralelna veza        p(R1,CPE1)
+#   Elements / elementi: R, C, L, CPE (or Q), W, Ws, Wo  + any index number
+#
+#   Randles with CPE:              R0-p(R1,CPE1)
+#   Two time constants (film):     R0-p(CPE2,R2-p(R1,CPE1))   (R2/CPE2 = film, R1/CPE1 = Rct/dl)
+#   Coating, ladder:               R0-p(CPE2,R2-p(CPE1,R1))
+#   With diffusion:                R0-p(CPE1,R1-W1)
+circuit: R0-p(R1,CPE1)
+
+# ---------------------------------------------------------------------
+# Systems: one entry per DTA file. "name" is the short name used for
+# Excel sheets and file names. "legend" is the text on the graph
+# (the program will also ask you for it when it runs).
+# Optional per system: circuit, color, marker, area_cm2,
+#   initial_guess, fixed, freq_min, freq_max
+#
+# Sistemi: jedan unos po DTA fajlu. "name" = kratko ime (Excel list,
+# imena fajlova). "legend" = tekst na grafiku (program će vas i pitati).
+# ---------------------------------------------------------------------
+systems:
+  - file: blank.DTA
+    name: Blank
+    legend: "Blank (1 M HCl)"
+  - file: inhibitor_0.1mM.DTA
+    name: 0.1 mM
+    legend: "0.1 mM inhibitor"
+  - file: inhibitor_1mM.DTA
+    name: 1 mM
+    legend: "1 mM inhibitor"
+  - file: inhibitor_5mM.DTA
+    name: 5 mM
+    legend: "5 mM inhibitor"
+    circuit: R0-p(CPE2,R2-p(R1,CPE1))
+
+# Example of a system with its own circuit and starting values:
+# Primer sistema sa sopstvenim kolom i početnim vrednostima:
+#  - file: inhibitor_5mM.DTA
+#    name: 5 mM
+#    legend: "5 mM inhibitor"
+#    circuit: R0-p(CPE2,R2-p(R1,CPE1))
+#    initial_guess: {R2: 50, R1: 5000}
+#    fixed: {CPE2_n: 1.0}
+#    color: "#000000"
+#    marker: o
+
+fit:
+  enabled: true
+  # modulus (recommended, like ZView/Gamry "calc-modulus"), proportional, unit
+  weighting: modulus
+  # Limit the fitted frequency range in Hz (null = use all points)
+  # Ograničenje opsega frekvencija za fit (null = sve tačke)
+  freq_min: null
+  freq_max: null
+  # Number of random starting points (more = slower but more robust)
+  n_starts: 40
+  # Starting values / fixed parameters for all systems, e.g. {CPE1_n: 0.9}
+  initial_guess: {}
+  fixed: {}
+
+plots:
+  # Ask for legend text every run / pitaj za tekst legende pri svakom pokretanju
+  ask_legend: true
+  # Figure width: single (90 mm), onehalf (140 mm), double (190 mm), or a number in mm
+  width: single
+  font: Arial
+  font_size: 8
+  marker_size: 4
+  # Plot every Nth data point: auto (thins markers so they do not overlap) or 1 = all points
+  marker_every: auto
+  fit_linewidth: 1.0
+  formats: [pdf, tiff, png]
+  dpi: 600
+  # Zoom the Nyquist plot: max value of both axes in Ω cm² (null = automatic)
+  nyquist_max: null
+  # Legend position: above, upper left, upper right, lower right, best, none
+  nyquist_legend_loc: upper left
+  bode_legend_loc: above
+  # Also make a 2-panel figure (a) Nyquist (b) Bode at double-column width
+  combined_figure: true
+  # Also make one Nyquist and one Bode figure per system
+  individual_figures: true
+  # Use kΩ / MΩ on Nyquist axes when values are large
+  unit_prefix: true
+
+table:
+  # Show relative errors (%) in parentheses in the Word table
+  show_errors: true
+  # Caption for the Word table (null = automatic)
+  caption: null
+  # Names printed in the table header. _x = subscript, ^x = superscript
+  # Each element name is one table column, so give the same physical element
+  # the same name in every circuit (e.g. always R1 = charge transfer resistance).
+  # Nazivi u zaglavlju tabele. _x = indeks, ^x = eksponent.
+  # Isti element neka ima isto ime u svim kolima (npr. uvek R1 = R_ct).
+  parameter_labels:
+    R0: R_s
+    R1: R_ct
+    CPE1_Q: Q_dl
+    CPE1_n: n_dl
+    R2: R_f
+    CPE2_Q: Q_f
+    CPE2_n: n_f
