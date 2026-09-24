@@ -100,6 +100,8 @@ plots:
   dpi: 600
   # Zoom the Nyquist plot: max value of both axes in Ω cm² (null = automatic)
   nyquist_max: null
+  # If one system is >10x larger than the rest, also save Nyquist_zoom showing the smaller ones
+  nyquist_zoom: true
   # Legend position: above, upper left, upper right, lower right, best, none
   nyquist_legend_loc: upper left
   bode_legend_loc: above

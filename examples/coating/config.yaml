@@ -8,7 +8,7 @@
 
 # Folder with the .DTA files (relative to this file)
 # Folder sa .DTA fajlovima (u odnosu na ovaj fajl)
-data_folder: {{DATA_FOLDER}}
+data_folder: data
 
 # Where results go (Excel, figures, tables)
 # Gde se snimaju rezultati (Excel, grafici, tabele)
@@ -33,7 +33,7 @@ area_cm2: auto
 #   Two time constants (film):     R0-p(CPE2,R2-p(R1,CPE1))   (R2/CPE2 = film, R1/CPE1 = Rct/dl)
 #   Coating, ladder:               R0-p(CPE2,R2-p(CPE1,R1))
 #   With diffusion:                R0-p(CPE1,R1-W1)
-circuit: R0-p(R1,CPE1)
+circuit: R0-p(CPE2,R2)
 
 # ---------------------------------------------------------------------
 # Systems: one entry per DTA file. "name" is the short name used for
@@ -46,7 +46,21 @@ circuit: R0-p(R1,CPE1)
 # imena fajlova). "legend" = tekst na grafiku (program će vas i pitati).
 # ---------------------------------------------------------------------
 systems:
-{{SYSTEMS}}
+  - file: epoxy_1h.DTA
+    name: 1 h
+    legend: "1 h"
+  - file: epoxy_24h.DTA
+    name: 24 h
+    legend: "24 h"
+  - file: epoxy 7 days.DTA
+    name: 7 d
+    legend: "7 days"
+    circuit: R0-p(CPE2,R2-p(R1,CPE1))
+  - file: epoxy_30d.DTA
+    name: 30 d
+    legend: "30 days"
+    circuit: R0-p(CPE2,R2-p(R1,CPE1))
+
 # Example of a system with its own circuit and starting values:
 # Primer sistema sa sopstvenim kolom i početnim vrednostima:
 #  - file: inhibitor_5mM.DTA
@@ -111,9 +125,9 @@ table:
   # Isti element neka ima isto ime u svim kolima (npr. uvek R1 = R_ct).
   parameter_labels:
     R0: R_s
+    R2: R_po
+    CPE2_Q: Q_c
+    CPE2_n: n_c
     R1: R_ct
     CPE1_Q: Q_dl
     CPE1_n: n_dl
-    R2: R_f
-    CPE2_Q: Q_f
-    CPE2_n: n_f

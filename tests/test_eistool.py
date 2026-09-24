@@ -8,7 +8,8 @@ from eistool.dta import read_dta
 from eistool.fitting import fit_circuit
 
 HERE = Path(__file__).parent
-EX = HERE.parent / "examples" / "data"
+EX = HERE.parent / "examples" / "inhibitor" / "data"
+COAT = HERE.parent / "examples" / "coating" / "data"
 
 
 def test_circuit_simple_values():
@@ -43,6 +44,34 @@ def test_decimal_comma_file():
     assert len(d.freq) == 71
     assert np.isclose(d.freq[0], 1e5)
     assert d.header["TAG"] == "EISPOT"
+
+
+@pytest.mark.parametrize("name,tag", [
+    ("epoxy_1h.DTA", "EISPOT"),          # cp1252, CRLF
+    ("epoxy_24h.DTA", "EISPOT"),         # UTF-8 with BOM, LF
+    ("epoxy 7 days.DTA", "EISGALV"),     # galvanostatic, no OCV block, spaces in name
+    ("epoxy_30d.DTA", "EISPOT"),         # UTF-8, LF, row count on ZCURVE line
+])
+def test_coating_file_variants(name, tag):
+    d = read_dta(COAT / name)
+    assert d.header["TAG"] == tag
+    assert len(d.freq) == 50
+    assert np.isclose(d.area, 3.14)
+    assert np.all(np.isfinite(d.zreal)) and np.all(d.zimag < 0)
+
+
+def test_coating_pipeline_units_and_zoom(tmp_path):
+    import shutil
+    from eistool.pipeline import run
+    ex = COAT.parent
+    shutil.copytree(ex / "data", tmp_path / "data")
+    shutil.copy(ex / "config.yaml", tmp_path / "config.yaml")
+    res = run(tmp_path / "config.yaml", ask=False)
+    recs = {r.name: r for r in res["systems"]}
+    # fitted in Ω cm² (area 3.14 from the DTA header), pore resistance of the 1 h coating ~ 4 GΩ cm²
+    assert np.isclose(recs["1 h"].fit.params["R2"], 4.0e9, rtol=0.05)
+    assert np.isclose(recs["30 d"].fit.params["R1"], 2.5e6, rtol=0.2)
+    assert (res["output"] / "figures" / "Nyquist_zoom.pdf").exists()
 
 
 @pytest.mark.parametrize("text,true", [

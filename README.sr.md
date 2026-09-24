@@ -11,7 +11,7 @@ Jednom komandom od Gamry `.DTA` fajlova dobijate rezultate spremne za objavljiva
 
 ![Primer](docs/example_combined.png)
 
-*Primer sa simuliranim podacima iz foldera `examples/` (čelik u 1 M HCl sa inhibitorom).*
+*Primer sa simuliranim podacima iz foldera `examples/inhibitor/` (čelik u 1 M HCl sa inhibitorom). Drugi primer, `examples/coating/`, prikazuje čelik sa epoksidnom prevlakom tokom 30 dana potapanja.*
 
 ---
 
@@ -27,31 +27,41 @@ Jednom komandom od Gamry `.DTA` fajlova dobijate rezultate spremne za objavljiva
 | Tabela | `EIS_results.xlsx` (list *Fit results*), `fit_results.csv`, `fit_table.docx` |
 | Standard časopisa | Širina 90 mm (jedna kolona) ili 190 mm (dve kolone), Arial 8 pt, podeoci ka unutra, fontovi ugrađeni u PDF, TIFF 600 dpi, paleta čitljiva za daltoniste i različiti markeri, pa slika radi i u crno-beloj štampi |
 
-## Instalacija (jednom)
+## Preuzimanje
 
-Potreban je Python 3.9 ili noviji. Sa **Anaconda / Miniconda** (preporučeno na Windowsu):
+**Bez gita (najlakše):** na GitHub stranici kliknite zeleno dugme **Code**, pa **Download ZIP**. Raspakujte ga bilo gde, na primer u Documents. Folder će se zvati `gamry-eis-toolkit-main`.
 
-```bash
-conda env create -f environment.yml
-conda activate eis
-```
-
-Ili sa pip-om:
+**Sa gitom:**
 
 ```bash
-pip install -r requirements.txt
+git clone https://github.com/Joe-Mez/gamry-eis-toolkit.git
 ```
+
+## Instalacija Pythona (jednom)
+
+Ako već imate **Anacondu** ili **Minicondu**, preskočite ovaj korak. Ako nemate, instalirajte [Minicondu](https://docs.conda.io/en/latest/miniconda.html) sa podrazumevanim opcijama.
+
+Ništa drugo ne morate ručno da instalirate. Prvi put kada dvaput kliknete na `run_eis.bat`, on pronađe condu i napravi Python okruženje `gamry-eis` sa svim potrebnim paketima. To traje nekoliko minuta i potreban je internet. Posle toga se pokreće za par sekundi.
+
+Ručna instalacija:
+
+```bash
+conda env create -f environment.yml      # pravi okruženje "gamry-eis"
+conda activate gamry-eis
+```
+
+ili bez conde: `pip install -r requirements.txt`
 
 ## Upotreba
 
 ### Windows, bez komandne linije
 
 1. Kopirajte `.DTA` fajlove u folder `data`.
-2. Dvaput kliknite na `run_eis.bat`. Prvi put napravi `config.yaml` i otvori ga u Notepadu.
-3. U `config.yaml` upišite ime i legendu za svaki sistem i ekvivalentno kolo. Sačuvajte i zatvorite.
+2. Dvaput kliknite na `run_eis.bat`. Prvi put podesi Python (vidi gore), napravi `config.yaml` i otvori ga u Notepadu.
+3. U `config.yaml` upišite ime i legendu za svaki sistem i ekvivalentno kolo. Sačuvajte i zatvorite Notepad.
 4. Ponovo dvaput kliknite na `run_eis.bat`. Program pita za tekst legende, radi fit i sve snima u `results/`.
 
-> Ako piše da `python` nije pronađen, otvorite **Anaconda Prompt**, ukucajte `conda activate eis`, uđite u ovaj folder (`cd`) i pokrenite `python run_eis.py`.
+> Windows prvi put može da prikaže plavi prozor "Windows protected your PC", jer je fajl preuzet sa interneta. Kliknite **More info**, pa **Run anyway**.
 
 ### Komandna linija
 
@@ -64,12 +74,21 @@ python run_eis.py --no-fit        # grafici i Excel bez fita
 python run_eis.py --elements      # spisak elemenata kola
 ```
 
-Probajte prvo na primeru:
+Probajte prvo na primerima:
 
 ```bash
-cd examples
-python ../run_eis.py
+cd examples/inhibitor        # ili examples/coating
+python ../../run_eis.py
 ```
+
+| Primer | Šta prikazuje |
+|---|---|
+| `examples/inhibitor/` | Čelik u 1 M HCl, bez inhibitora i sa tri koncentracije. Mala impedansa (Ω cm²), elektroda 1 cm², jedan fajl sa decimalnim zarezom, jedan sistem sa dve vremenske konstante |
+| `examples/coating/` | Čelik sa epoksidnom prevlakom u 3,5 % NaCl posle 1 h, 24 h, 7 i 30 dana. Velika impedansa (do GΩ cm²), elektroda 3,14 cm², druga vremenska konstanta koja se javlja kako prevlaka degradira, i različite varijante Gamry fajlova |
+
+Oba primera su simulirana (`examples/make_example_data.py`), nisu merena.
+
+![Primer prevlake](docs/example_coating.png)
 
 ## Rezultati
 
@@ -82,6 +101,7 @@ results/
 ├── legend_labels.yaml     tekst legende koji ste uneli (pamti se za sledeći put)
 └── figures/
     ├── Nyquist.pdf/.tiff/.png          svi sistemi, 90 mm
+    ├── Nyquist_zoom.pdf/.tiff/.png     samo ako je jedan sistem >10x veći od ostalih
     ├── Bode.pdf/.tiff/.png             svi sistemi, 90 mm
     ├── EIS_combined.pdf/.tiff/.png     (a) Najkvist (b) Bode, 190 mm
     └── individual/                     Najkvist i Bode za svaki sistem posebno

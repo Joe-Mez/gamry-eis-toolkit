@@ -45,8 +45,21 @@ def _unit(prefix: str, normalised: bool) -> str:
     return prefix + r"$\Omega$" + (r" cm$^{2}$" if normalised else "")
 
 
+def _every(n_points: int, step) -> list[int]:
+    """Indices for thinned markers that always keep the first and last points."""
+    step = max(int(step or 1), 1)
+    idx = list(range(0, n_points, step))
+    if idx[-1] != n_points - 1:
+        if n_points - 1 - idx[-1] < max(step // 2, 1) and len(idx) > 1:
+            idx[-1] = n_points - 1   # replace a too-close neighbour instead of crowding
+        else:
+            idx.append(n_points - 1)
+    return idx
+
+
 def _data_kw(s: PlotSeries, filled: bool, ms: float, markevery):
-    return dict(linestyle="none", marker=s.marker, markersize=ms, markevery=markevery,
+    return dict(linestyle="none", marker=s.marker, markersize=ms,
+                markevery=_every(len(s.freq), markevery),
                 markeredgewidth=0.8, markeredgecolor=s.color,
                 markerfacecolor=s.color if filled else "white", color=s.color, zorder=3)
 
@@ -203,6 +216,14 @@ def figure_nyquist(series, normalised, opts):
     has_fit = any(s.fit_z is not None for s in series)
     _place(ax, sample_handles(series, has_fit), opts.get("nyquist_legend_loc", "upper left"), opts)
     return fig
+
+
+def nyquist_zoom_limit(series) -> float | None:
+    """If one sample dwarfs the others (>10x), return a zoom limit that shows the rest."""
+    tops = sorted((max(s.z.real.max(), (-s.z.imag).max()) for s in series), reverse=True)
+    if len(tops) < 2 or tops[0] < 10 * tops[1]:
+        return None
+    return tops[1] * 1.08
 
 
 def figure_bode(series, normalised, opts):

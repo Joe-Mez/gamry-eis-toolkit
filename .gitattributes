@@ -1,0 +1,4 @@
+# Keep Windows line endings for the launcher and never touch the example DTA bytes
+*.bat text eol=crlf
+*.DTA binary
+*.dta binary

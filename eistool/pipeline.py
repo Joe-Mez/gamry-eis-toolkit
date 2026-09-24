@@ -46,6 +46,7 @@ DEFAULTS = {
         "formats": ["pdf", "tiff", "png"],
         "dpi": 600,
         "nyquist_max": None,
+        "nyquist_zoom": True,
         "nyquist_legend_loc": "upper left",
         "bode_legend_loc": "above",
         "combined_figure": True,
@@ -219,7 +220,7 @@ def print_fit_summary(recs: list[SystemRecord]) -> str:
             lines.append(f"    WARNING: large uncertainty for {', '.join(big)}; "
                          "the circuit may have too many elements for this spectrum.")
     text = "\n".join(lines)
-    _log(text)
+    _log(text.replace("ⁿ", "^n"))  # Windows console fonts lack a superscript n
     return text
 
 
@@ -280,6 +281,11 @@ def run(config_path: str | Path, *, ask: bool = True, convert_only: bool = False
     fmts, dpi = pc.get("formats", ["pdf", "png"]), int(pc.get("dpi", 600))
     files = []
     files += plotting.save(plotting.figure_nyquist(series, normalised, pc), figdir / "Nyquist", fmts, dpi)
+    zoom = plotting.nyquist_zoom_limit(series) if pc.get("nyquist_zoom", True) and not pc.get("nyquist_max") else None
+    if zoom:
+        files += plotting.save(plotting.figure_nyquist(series, normalised, dict(pc, nyquist_max=zoom, nyquist_legend_loc="best")),
+                               figdir / "Nyquist_zoom", fmts, dpi)
+        _log("One system is >10x larger than the others: also wrote Nyquist_zoom (smaller systems visible).")
     files += plotting.save(plotting.figure_bode(series, normalised, pc), figdir / "Bode", fmts, dpi)
     if pc.get("combined_figure", True):
         files += plotting.save(plotting.figure_combined(series, normalised, pc), figdir / "EIS_combined", fmts, dpi)
@@ -316,7 +322,7 @@ def init_config(config_path: Path, data_folder: str = "data"):
     template = (Path(__file__).parent / "config_template.yaml").read_text(encoding="utf-8")
     if files:
         items = "\n".join(
-            f"  - file: {p.name}\n    name: {p.stem}\n    legend: \"{p.stem}\"\n" for p in files)
+            f"  - file: {p.name}\n    name: {p.stem}\n    legend: \"{p.stem}\"" for p in files)
     else:
         items = "  - file: sample1.DTA\n    name: Sample 1\n    legend: \"Sample 1\"\n"
     text = template.replace("{{SYSTEMS}}", items.rstrip() + "\n").replace("{{DATA_FOLDER}}", data_folder)

@@ -11,7 +11,7 @@ Turn Gamry potentiostat `.DTA` impedance files into publication-ready results in
 
 ![Example output](docs/example_combined.png)
 
-*Example output from the simulated data in `examples/` (mild steel in 1 M HCl with an inhibitor).*
+*Example output from the simulated data in `examples/inhibitor/` (mild steel in 1 M HCl with an inhibitor). A second example, `examples/coating/`, covers epoxy-coated steel over 30 days of immersion.*
 
 ---
 
@@ -27,31 +27,41 @@ Turn Gamry potentiostat `.DTA` impedance files into publication-ready results in
 | Table | `EIS_results.xlsx` (sheet *Fit results*), `fit_results.csv`, `fit_table.docx` |
 | Journal standard | 90 mm single-column or 190 mm double-column width, Arial 8 pt, inward ticks, embedded fonts in PDF, 600 dpi LZW TIFF, colour-blind-safe palette with distinct marker shapes so figures also work in greyscale |
 
-## Install (once)
+## Get the code
 
-You need Python 3.9 or newer. With **Anaconda / Miniconda** (recommended on Windows):
+**Without git (easiest):** on the GitHub page click the green **Code** button, then **Download ZIP**. Unzip it anywhere, for example in Documents. The folder will be called `gamry-eis-toolkit-main`.
 
-```bash
-conda env create -f environment.yml
-conda activate eis
-```
-
-Or with plain pip:
+**With git:**
 
 ```bash
-pip install -r requirements.txt
+git clone https://github.com/Joe-Mez/gamry-eis-toolkit.git
 ```
+
+## Install Python (once)
+
+If you already have **Anaconda** or **Miniconda**, skip this step. Otherwise install [Miniconda](https://docs.conda.io/en/latest/miniconda.html) with the default options.
+
+You do not need to install anything else by hand. The first time you double-click `run_eis.bat`, it finds conda and creates a Python environment called `gamry-eis` with everything the toolkit needs. That takes a few minutes and needs internet. After that it starts in seconds.
+
+To set it up by hand instead:
+
+```bash
+conda env create -f environment.yml      # creates the "gamry-eis" environment
+conda activate gamry-eis
+```
+
+or, without conda: `pip install -r requirements.txt`
 
 ## Use
 
 ### Windows, no command line
 
 1. Copy your `.DTA` files into the `data` folder.
-2. Double-click `run_eis.bat`. The first time, it creates `config.yaml` and opens it in Notepad.
-3. In `config.yaml`, give each system a name and legend and set the equivalent circuit. Save and close.
+2. Double-click `run_eis.bat`. The first time, it sets up Python (see above), creates `config.yaml` and opens it in Notepad.
+3. In `config.yaml`, give each system a name and legend and set the equivalent circuit. Save and close Notepad.
 4. Double-click `run_eis.bat` again. It asks for the legend text, fits, and writes everything to `results/`.
 
-> If double-clicking says `python` is not found, open **Anaconda Prompt**, run `conda activate eis`, `cd` into this folder and run `python run_eis.py`.
+> Windows may show a blue "Windows protected your PC" box the first time, because the file was downloaded from the internet. Click **More info**, then **Run anyway**.
 
 ### Command line
 
@@ -67,9 +77,18 @@ python run_eis.py --elements      # list circuit elements
 Try it on the example data first:
 
 ```bash
-cd examples
-python ../run_eis.py
+cd examples/inhibitor        # or examples/coating
+python ../../run_eis.py
 ```
+
+| Example | What it shows |
+|---|---|
+| `examples/inhibitor/` | Mild steel in 1 M HCl, blank and three inhibitor concentrations. Low impedance (Ω cm²), 1 cm² electrode, one file with decimal commas, one system with two time constants |
+| `examples/coating/` | Epoxy-coated steel in 3.5 % NaCl after 1 h, 24 h, 7 days and 30 days. High impedance (up to GΩ cm²), 3.14 cm² electrode, a second time constant that appears as the coating degrades, and several Gamry file variants (UTF-8, galvanostatic EIS, no OCV block, spaces in the file name) |
+
+Both are simulated with `examples/make_example_data.py`, not measured.
+
+![Coating example](docs/example_coating.png)
 
 ## Output
 
@@ -82,6 +101,7 @@ results/
 ├── legend_labels.yaml     the legend text you typed (remembered for the next run)
 └── figures/
     ├── Nyquist.pdf/.tiff/.png          all systems, 90 mm
+    ├── Nyquist_zoom.pdf/.tiff/.png     only when one system is >10x larger than the rest
     ├── Bode.pdf/.tiff/.png             all systems, 90 mm
     ├── EIS_combined.pdf/.tiff/.png     (a) Nyquist (b) Bode, 190 mm
     └── individual/                     one Nyquist and one Bode per system
