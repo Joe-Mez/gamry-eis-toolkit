@@ -38,6 +38,11 @@ Look at `results/figures/*.png` before saying the figures are done.
   window (e.g. to drop low-frequency scatter or an inductive tail).
 * χ² around 1e-3 or lower is a good fit with modulus weighting.
 
+## Known issues
+
+Read `KNOWN_ISSUES.md` before debugging a user's problem: it may already be listed there with a
+workaround. When you fix one, add a test to `tests/test_review_fixes.py` and remove its row.
+
 ## Code map
 
 * `eistool/dta.py` Gamry DTA reader (handles decimal commas, OCV blocks, encodings)

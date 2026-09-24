@@ -166,6 +166,10 @@ python -m pytest
 
 The tests include a real Gamry file from the [impedance.py](https://github.com/ECSHackWeek/impedance.py) project and check that the fitter recovers known parameters from noisy synthetic spectra.
 
+## Known issues
+
+A few rare cases are known and not yet fixed, mostly unusual hand-made CSV/TXT files. See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for each one with a workaround.
+
 ## Licence
 
 MIT

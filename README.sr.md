@@ -149,6 +149,10 @@ Svako ime elementa je jedna kolona u tabeli, zato isti fizički element neka ima
 
 `CLAUDE.md` objašnjava Claude Code-u kako da koristi ovaj alat. Otvorite folder u Claude Code-u i napišite, na primer: *"Fituj moje DTA fajlove kolom R0-p(R1,CPE1) i nacrtaj Najkvist i Bode"*. Claude će pitati za imena sistema i legendu, pa pokrenuti alat.
 
+## Poznati problemi
+
+Nekoliko retkih slučajeva je poznato i još nije rešeno, uglavnom neobični ručno pravljeni CSV/TXT fajlovi. Spisak sa rešenjima je u [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
+
 ## Licenca
 
 MIT
